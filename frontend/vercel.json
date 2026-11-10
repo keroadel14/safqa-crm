@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://safqacrm-9z8ulw18.back4.app/api/:path*"
+    },
+    {
+      "source": "/hubs/:path*",
+      "destination": "https://safqacrm-9z8ulw18.back4.app/hubs/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
