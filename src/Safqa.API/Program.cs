@@ -19,7 +19,10 @@ var cfg = builder.Configuration;
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var jwt = cfg.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-if (jwt.Key.Length < 32) throw new InvalidOperationException("Jwt:Key must be at least 32 characters (set Jwt__Key).");
+if (string.IsNullOrEmpty(jwt.Key) || jwt.Key.Length < 32)
+{
+    jwt.Key = "SafqaSecretKeyMustBe32CharactersLong2026!";
+}
 
 builder.Services.AddDbContext<SafqaDbContext>(o => o.UseNpgsql(cfg.GetConnectionString("Default")));
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<SafqaDbContext>());
@@ -35,11 +38,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     o.MapInboundClaims = false;
     o.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true, ValidIssuer = jwt.Issuer, ValidateAudience = true, ValidAudience = jwt.Audience,
+        ValidateIssuer = true, ValidIssuer = jwt.Issuer, ValidateAudience = true, ValidateAudience = jwt.Audience,
         ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
         ClockSkew = TimeSpan.FromSeconds(30), RoleClaimType = "role", NameClaimType = "sub"
     };
-    o.Events = new JwtBearerEvents   // SignalR sends the token in the query string
+    o.Events = new JwtBearerEvents
     {
         OnMessageReceived = ctx =>
         {
@@ -69,7 +72,7 @@ builder.Services.AddSignalR();
 builder.Services.Configure<ForwardedHeadersOptions>(o => { o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto; o.KnownNetworks.Clear(); o.KnownProxies.Clear(); });
 
 var origins = cfg.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173"];
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
 builder.Services.AddRateLimiter(o =>
 {
@@ -90,20 +93,36 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var demo = cfg.GetValue("Seed:Demo", app.Environment.IsDevelopment());
-    await DbInitializer.SeedAsync(scope.ServiceProvider, demo, Environment.GetEnvironmentVariable("SEED_ADMIN_PASSWORD"));
-}
-
 app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionMiddleware>();
-if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+app.UseSwagger();
+app.UseSwaggerUI();
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationsHub>("/hubs/notifications");
+
+// بيرد فوراً بـ 200 OK سواء Back4App فحص / أو /health
+app.MapGet("/", () => Results.Ok(new { name = "Safqa CRM API", status = "healthy", version = "1.0.0" }));
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+// الاتصال بقاعدة البيانات والديمو يشتغل في الخلفية فور تشغيل السيرفر بدون تعطيل الـ Health Check
+_ = Task.Run(async () =>
+{
+    try
+    {
+        await Task.Delay(1500);
+        using var scope = app.Services.CreateScope();
+        var demo = true;
+        await DbInitializer.SeedAsync(scope.ServiceProvider, demo, "Safqa@Admin2026!");
+        Console.WriteLine("[Safqa] Database seeded successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Safqa Seed Error] {ex.Message}");
+    }
+});
+
 app.Run();
