@@ -1,0 +1,51 @@
+# Workflow 1 – database only (run API + web locally):   docker compose up -d db
+# Workflow 2 – full stack in containers:                docker compose --profile full up -d --build
+name: safqa
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: safqa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safqa_dev}
+      POSTGRES_DB: safqa
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U safqa -d safqa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [safqa-net]
+
+  api:
+    profiles: ["full"]
+    build: { context: ., dockerfile: src/Safqa.API/Dockerfile }
+    restart: unless-stopped
+    depends_on: { db: { condition: service_healthy } }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: Host=db;Port=5432;Database=safqa;Username=safqa;Password=${POSTGRES_PASSWORD:-safqa_dev}
+      Jwt__Key: ${JWT_KEY:-dev-only-signing-key-change-me-0123456789abcdef}
+      Seed__Demo: ${SEED_DEMO:-true}              # demo users & data; set false in real deployments
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      Cors__Origins__0: http://localhost:3000
+      PublicCapture__AllowedOrigins__0: http://localhost:3000
+    ports: ["5000:8080"]
+    networks: [safqa-net]
+
+  web:
+    profiles: ["full"]
+    build: { context: ./frontend }
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["3000:80"]
+    networks: [safqa-net]
+
+volumes:
+  pgdata:
+
+networks:
+  safqa-net:
+    driver: bridge

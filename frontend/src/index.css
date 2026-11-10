@@ -1,0 +1,16 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+@layer base {
+  body { @apply bg-surface text-slate-900 antialiased dark:bg-surface-dark dark:text-slate-100; }
+  html[lang="ar"] body { font-family: "Noto Sans Arabic Variable", "Inter Variable", system-ui, sans-serif; line-height: 1.65; letter-spacing: 0; }
+  html[lang="en"] body { line-height: 1.5; }
+  :focus-visible { outline: 2px solid #0E7490; outline-offset: 2px; }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+@layer components {
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 md:min-h-10; }
+  .btn-primary { @apply btn bg-primary text-white hover:bg-primary-hover; }
+  .btn-ghost { @apply btn border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800; }
+  .input { @apply min-h-[44px] w-full rounded-lg border border-slate-300 bg-white px-3 text-[15px] dark:border-slate-700 dark:bg-card-dark md:min-h-10; }
+  .card { @apply rounded-xl border border-slate-200 bg-card p-4 shadow-sm dark:border-slate-800 dark:bg-card-dark; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
